@@ -44,7 +44,7 @@ Start the app to make sure the provided code is working. You should see the user
 
 In the [`lib/services/wallets`](./lib/services/wallets) folder you can find the `wallet_service.dart` file. It provides an abstract `WalletService` class with the main functions a wallet service needs. In the [`impl`](./lib/services/wallets/impl/) folder a class `BitcoinWalletService` is provided and already implemented, this is not needed if you do not need a separate on-chain wallet. We just added it to be able to easily send on-chain funds from the Lightning node to another on-chain wallet as a demostration.
 
-> [!INFO]
+> [!NOTE]
 > To know more about the Bitcoin wallet service implementation and how to build an on-chain Bitcoin wallet yourself, check out our [BDK Flutter Workshop](https://github.com/LtbLightning/bdk-flutter-workshop).
 
 In this workshop, another implementation of the wallet service functions will be implemented in the `LightningWalletService` class to have a self-custodial Lightning wallet. We have left some code out of the `LightningWalletService` class for you to complete during the workshop.
