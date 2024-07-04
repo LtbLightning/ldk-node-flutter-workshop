@@ -33,7 +33,7 @@ dependencies:
   ldk_node:
     git:
       url: https://github.com/LtbLightning/ldk-node-flutter
-      ref: lsp-version
+      ref: upgrade-v0.3.0
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -42,8 +42,11 @@ dependencies:
   equatable: ^2.0.5
   flutter_svg: ^2.0.10+1
   qr_flutter: ^4.1.0
-  bdk_flutter: ^0.31.2-dev.1
+  bdk_flutter: ^0.31.2-dev.2
   path_provider: ^2.1.3
+
+dependency_overrides:
+  flutter_rust_bridge: ^2.0.0 # Needed because bdk_flutter uses an other version than ldk_node
 
 dev_dependencies:
   flutter_test:

@@ -37,10 +37,10 @@ packages:
     dependency: "direct main"
     description:
       name: bdk_flutter
-      sha256: c912a10a473fc8d378a6fd56f9eeb46f0cacaabee6c51c61a5e4566dadc674a6
+      sha256: db008fee905c040eae908484c11fd8ae167d6686158890b2e166bc8d82f8727d
       url: "https://pub.dev"
     source: hosted
-    version: "0.31.2-dev.1"
+    version: "0.31.2-dev.2"
   boolean_selector:
     dependency: transitive
     description:
@@ -199,13 +199,13 @@ packages:
     source: hosted
     version: "3.0.2"
   flutter_rust_bridge:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
       name: flutter_rust_bridge
-      sha256: e9a8716b1ad2fc81c434f3e4bf84b86c578578678c57e568b44aea7acf210102
+      sha256: f703c4b50e253e53efc604d50281bbaefe82d615856f8ae1e7625518ae252e98
       url: "https://pub.dev"
     source: hosted
-    version: "2.0.0-dev.31"
+    version: "2.0.0"
   flutter_secure_storage:
     dependency: "direct main"
     description:
@@ -259,14 +259,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.0.2"
-  js:
-    dependency: transitive
-    description:
-      name: js
-      sha256: c1b2e9b5ea78c45e1a0788d29606ba27dc5f71f019f32ca5140f61ef071838cf
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.7.1"
   json_annotation:
     dependency: transitive
     description:
@@ -279,11 +271,11 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: lsp-version
-      resolved-ref: e33e63c9e632d2b6dd8afcac20640957fd5f09c4
+      ref: "upgrade-v0.3.0"
+      resolved-ref: e36e23e629887d6b9c9d6297365338a5de6df77e
       url: "https://github.com/LtbLightning/ldk-node-flutter"
     source: git
-    version: "0.2.3-dev"
+    version: "0.3.0"
   leak_tracker:
     dependency: transitive
     description:
