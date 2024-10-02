@@ -238,7 +238,7 @@ class LightningWalletService implements WalletService {
 
     // 4. Start the node
 
-    _printLogs();
+    //_printLogs();
   }
 
   Future<String> get _nodePath async {
