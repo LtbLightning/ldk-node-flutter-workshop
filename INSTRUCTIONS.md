@@ -18,8 +18,7 @@ To add LDK Node to an app, you can simply run `flutter pub add ldk_node` or add 
 
 ```yaml
 dependencies:
-  # Other dependencies...
-  ldk_node: ^0.2.2-dev
+  ldk_node: ^0.3.0
 ```
 
 > [!NOTE]

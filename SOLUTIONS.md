@@ -253,9 +253,8 @@ Future<void> _initialize(Mnemonic mnemonic) async {
 ```dart
 Future<void> _initialize(Mnemonic mnemonic) async {
     // 16. Add the following LSP to be able to request LSPS2 JIT channels:
-    //  Node Pubkey: 0371d6fd7d75de2d0372d03ea00e8bacdacb50c27d0eaea0a76a0622eff1f5ef2b
-    //  Node Address: 44.219.111.31:39735
-    //  Access token: JZWN9YLW
+    //  Node Pubkey: 02de89e79fd4adfd5f15b5f09efa60250f5fcc62b8cda477a1cfab38d0bb53dd96
+    //  Node Address: 192.243.215.101:27110
     final builder = Builder()
         .setEntropyBip39Mnemonic(mnemonic: mnemonic)
         .setStorageDirPath(await _nodePath)
@@ -269,14 +268,13 @@ Future<void> _initialize(Mnemonic mnemonic) async {
         .setGossipSourceRgs('https://mutinynet.ltbl.io/snapshot')
         .setLiquiditySourceLsps2(
           address: const SocketAddress.hostname(
-            addr: '44.228.24.253',
-            port: 9735,
+            addr: '192.243.215.101',
+            port: 27110,
           ),
           publicKey: const PublicKey(
-            hexCode:
-                '025804d4431ad05b06a1a1ee41f22fefeb8ce800b0be3a92ff3b9f594a263da34e',
+            hex:
+                '02de89e79fd4adfd5f15b5f09efa60250f5fcc62b8cda477a1cfab38d0bb53dd96',
           ),
-          token: 'JZWN9YLW',
         );
 
     _node = await builder.build();

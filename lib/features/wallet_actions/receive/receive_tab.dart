@@ -103,8 +103,8 @@ class ReceiveTabInputFields extends StatelessWidget {
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: const InputDecoration(
               border: OutlineInputBorder(),
-              labelText: 'Amount (optional)',
-              hintText: '0',
+              labelText: 'Amount in BTC (optional)',
+              hintText: '0.0001',
               helperText: 'The amount you want to receive in BTC.',
             ),
             onChanged: amountChangeHandler,

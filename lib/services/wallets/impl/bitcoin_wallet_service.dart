@@ -1,4 +1,5 @@
 import 'package:bdk_flutter/bdk_flutter.dart';
+import 'package:flutter/material.dart';
 import 'package:ldk_node_flutter_workshop/entities/recommended_fee_rates_entity.dart';
 import 'package:ldk_node_flutter_workshop/entities/transaction_entity.dart';
 import 'package:ldk_node_flutter_workshop/enums/wallet_type.dart';
@@ -20,17 +21,18 @@ class BitcoinWalletService implements WalletService {
 
   @override
   Future<void> init() async {
-    print('Initializing BitcoinWalletService...');
+    debugPrint('Initializing BitcoinWalletService...');
     await _initBlockchain();
-    print('Blockchain initialized!');
+    debugPrint('Blockchain initialized!');
 
     final mnemonic = await _mnemonicRepository.getMnemonic(_walletType.label);
     if (mnemonic != null && mnemonic.isNotEmpty) {
       await _initWallet(await Mnemonic.fromString(mnemonic));
       await sync();
-      print('Wallet with mnemonic "$mnemonic" found, initialized and synced!');
+      debugPrint(
+          'Wallet with mnemonic "$mnemonic" found, initialized and synced!');
     } else {
-      print('No wallet found!');
+      debugPrint('No wallet found!');
     }
   }
 
@@ -43,15 +45,15 @@ class BitcoinWalletService implements WalletService {
       mnemonic = await Mnemonic.create(WordCount.words12);
       await _mnemonicRepository.setMnemonic(
         _walletType.label,
-        await mnemonic.asString(),
+        mnemonic.asString(),
       );
     } else {
       mnemonic = await Mnemonic.fromString(storedMnemonic);
     }
 
     await _initWallet(mnemonic);
-    print(
-        'Wallet added with mnemonic: ${await mnemonic.asString()} and initialized!');
+    debugPrint(
+        'Wallet added with mnemonic: ${mnemonic.asString()} and initialized!');
   }
 
   @override
@@ -70,16 +72,16 @@ class BitcoinWalletService implements WalletService {
 
   @override
   Future<int> getSpendableBalanceSat() async {
-    final balance = await _wallet!.getBalance();
+    final balance = _wallet!.getBalance();
 
-    print('Confirmed balance: ${balance.confirmed}');
-    print('Spendable balance: ${balance.spendable}');
-    print('Unconfirmed balance: ${balance.immature}');
-    print('Trusted pending balance: ${balance.trustedPending}');
-    print('Pending balance: ${balance.untrustedPending}');
-    print('Total balance: ${balance.total}');
+    debugPrint('Confirmed balance: ${balance.confirmed}');
+    debugPrint('Spendable balance: ${balance.spendable}');
+    debugPrint('Unconfirmed balance: ${balance.immature}');
+    debugPrint('Trusted pending balance: ${balance.trustedPending}');
+    debugPrint('Pending balance: ${balance.untrustedPending}');
+    debugPrint('Total balance: ${balance.total}');
 
-    return balance.spendable;
+    return balance.spendable.toInt();
   }
 
   @override
@@ -88,23 +90,23 @@ class BitcoinWalletService implements WalletService {
     int? expirySecs,
     String? description,
   }) async {
-    final invoice = await _wallet!.getAddress(
+    final invoice = _wallet!.getAddress(
       addressIndex: const AddressIndex.increase(),
     );
 
-    return (await invoice.address.asString(), null);
+    return (invoice.address.asString(), null);
   }
 
   @override
   Future<List<TransactionEntity>> getTransactions() async {
-    final transactions = await _wallet!.listTransactions(includeRaw: true);
+    final transactions = _wallet!.listTransactions(includeRaw: true);
 
     return transactions.map((tx) {
       return TransactionEntity(
         id: tx.txid,
-        receivedAmountSat: tx.received,
-        sentAmountSat: tx.sent,
-        timestamp: tx.confirmationTime?.timestamp,
+        receivedAmountSat: tx.received.toInt(),
+        sentAmountSat: tx.sent.toInt(),
+        timestamp: tx.confirmationTime?.timestamp.toInt(),
       );
     }).toList();
   }
@@ -125,15 +127,15 @@ class BitcoinWalletService implements WalletService {
       s: invoice,
       network: Network.signet,
     );
-    final script = await address
+    final script = address
         .scriptPubkey(); // Creates the output scripts so that the wallet that generated the address can spend the funds
-    var txBuilder = TxBuilder().addRecipient(script, amountSat);
+    var txBuilder = TxBuilder().addRecipient(script, BigInt.from(amountSat));
 
     // Set the fee rate for the transaction
     if (satPerVbyte != null) {
       txBuilder = txBuilder.feeRate(satPerVbyte);
     } else if (absoluteFeeSat != null) {
-      txBuilder = txBuilder.feeAbsolute(absoluteFeeSat);
+      txBuilder = txBuilder.feeAbsolute(BigInt.from(absoluteFeeSat));
     }
 
     final (psbt, _) = await txBuilder.finish(_wallet!);
@@ -148,10 +150,10 @@ class BitcoinWalletService implements WalletService {
     final [highPriority, mediumPriority, lowPriority, noPriority] =
         await Future.wait(
       [
-        _blockchain.estimateFee(target: 5),
-        _blockchain.estimateFee(target: 144),
-        _blockchain.estimateFee(target: 504),
-        _blockchain.estimateFee(target: 1008),
+        _blockchain.estimateFee(target: BigInt.from(5)),
+        _blockchain.estimateFee(target: BigInt.from(144)),
+        _blockchain.estimateFee(target: BigInt.from(504)),
+        _blockchain.estimateFee(target: BigInt.from(1008)),
       ],
     );
 
@@ -165,10 +167,10 @@ class BitcoinWalletService implements WalletService {
 
   Future<void> _initBlockchain() async {
     _blockchain = await Blockchain.create(
-      config: const BlockchainConfig.esplora(
+      config: BlockchainConfig.esplora(
         config: EsploraConfig(
           baseUrl: 'https://mutinynet.ltbl.io/api',
-          stopGap: 10,
+          stopGap: BigInt.from(10),
         ),
       ),
     );

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:ldk_node_flutter_workshop/entities/transaction_entity.dart';
 import 'package:ldk_node_flutter_workshop/enums/wallet_type.dart';
 import 'package:ldk_node_flutter_workshop/repositories/mnemonic_repository.dart';
@@ -26,7 +27,7 @@ class LightningWalletService implements WalletService {
     if (mnemonic != null && mnemonic.isNotEmpty) {
       await _initialize(Mnemonic(seedPhrase: mnemonic));
 
-      print(
+      debugPrint(
         'Lightning node initialized with id: ${(await _node!.nodeId()).hex}',
       );
     }
@@ -35,9 +36,9 @@ class LightningWalletService implements WalletService {
   @override
   Future<void> addWallet() async {
     // 1. Use ldk_node's Mnemonic class to generate a new, valid mnemonic
-    final mnemonic = await Mnemonic.generate();
+    final mnemonic = Mnemonic(seedPhrase: 'invalid mnemonic');
 
-    print('Generated mnemonic: ${mnemonic.seedPhrase}');
+    debugPrint('Generated mnemonic: ${mnemonic.seedPhrase}');
 
     await _mnemonicRepository.setMnemonic(
       _walletType.label,
@@ -47,7 +48,7 @@ class LightningWalletService implements WalletService {
     await _initialize(mnemonic);
 
     if (_node != null) {
-      print(
+      debugPrint(
         'Lightning Node added with node id: ${(await _node!.nodeId()).hex}',
       );
     }
@@ -84,15 +85,9 @@ class LightningWalletService implements WalletService {
     }
 
     // 5. Get all channels of the node and sum the usable channels' outbound capacity
-    final usableChannels =
-        (await _node!.listChannels()).where((channel) => channel.isUsable);
-    final outboundCapacityMsat = usableChannels.fold(
-      0,
-      (sum, channel) => sum + channel.outboundCapacityMsat.toInt(),
-    );
 
     // 6. Return the balance in sats
-    return outboundCapacityMsat ~/ 1000;
+    return 0;
   }
 
   Future<int> get inboundLiquiditySat async {
@@ -102,14 +97,7 @@ class LightningWalletService implements WalletService {
 
     // 17. Get the total inbound liquidity in satoshis by summing up the inbound
     //  capacity of all channels that are usable and return it in satoshis.
-    final usableChannels =
-        (await _node!.listChannels()).where((channel) => channel.isUsable);
-    final inboundCapacityMsat = usableChannels.fold(
-      0,
-      (sum, channel) => sum + (channel.inboundCapacityMsat).toInt(),
-    );
-
-    return inboundCapacityMsat ~/ 1000;
+    return 0;
   }
 
   @override
@@ -122,44 +110,25 @@ class LightningWalletService implements WalletService {
       throw NoWalletException('A Lightning node has to be initialized first!');
     }
 
-    Bolt11Payment bolt11Payment = await _node!.bolt11Payment();
-    Bolt11Invoice? bolt11;
+    // 7. Based on an amount of sats being passed or not, generate a bolt11 invoice
+    //  to receive a fixed amount or a variable amount of sats.
     try {
       if (amountSat == null) {
         // 18. Change to receive via a JIT channel when no amount is specified
-        bolt11 = await bolt11Payment.receiveVariableAmountViaJitChannel(
-          expirySecs: expirySecs,
-          description: description,
-        );
       } else {
         // 19. Check the inbound liquidity and request a JIT channel if needed
         //  otherwise receive the payment as usual.
-        if (await inboundLiquiditySat < amountSat) {
-          bolt11 = await bolt11Payment.receiveViaJitChannel(
-            amountMsat: BigInt.from(amountSat * 1000),
-            expirySecs: expirySecs,
-            description: description,
-          );
-        } else {
-          bolt11 = await bolt11Payment.receive(
-            amountMsat: BigInt.from(amountSat * 1000),
-            expirySecs: expirySecs,
-            description: description,
-          );
-        }
       }
     } catch (e) {
       final errorMessage = 'Failed to generate invoice: $e';
-      print(errorMessage);
+      debugPrint(errorMessage);
     }
 
-    final onChainPayment = await _node!.onChainPayment();
-    final bitcoinAddress = await onChainPayment.newAddress();
+    // 8. As a fallback, also generate a new on-chain address to receive funds
+    //  in case the sender doesn't support Lightning payments.
 
-    print('Generated invoice: ${bolt11?.signedRawInvoice}');
-    print('Generated address: ${bitcoinAddress.s}');
-
-    return (bitcoinAddress.s, bolt11 == null ? '' : bolt11.signedRawInvoice);
+    // 9. Return the bitcoin address and the bolt11 invoice
+    return ('invalid Bitcoin address', 'invalid bolt11 invoice');
   }
 
   Future<int> get totalOnChainBalanceSat async {
@@ -216,16 +185,6 @@ class LightningWalletService implements WalletService {
     }
 
     // 10. Connect to a node and open a new channel.
-    await _node!.connectOpenChannel(
-      socketAddress: SocketAddress.hostname(addr: host, port: port),
-      nodeId: PublicKey(
-        hex: nodeId,
-      ),
-      channelAmountSats: BigInt.from(channelAmountSat),
-      announceChannel: announceChannel,
-      channelConfig: null,
-      pushToCounterpartyMsat: null,
-    );
   }
 
   @override
@@ -242,22 +201,9 @@ class LightningWalletService implements WalletService {
     // 11. Use the node to send a payment.
     //  If the amount is not specified, suppose it is embeded in the invoice.
     //  If the amount is specified, suppose the invoice is a zero-amount invoice and specify the amount when sending the payment.
-    final bolt11Payment = await _node!.bolt11Payment();
-    final hash = amountSat == null
-        ? await bolt11Payment.send(
-            invoice: Bolt11Invoice(
-              signedRawInvoice: invoice,
-            ),
-          )
-        : await bolt11Payment.sendUsingAmount(
-            invoice: Bolt11Invoice(
-              signedRawInvoice: invoice,
-            ),
-            amountMsat: BigInt.from(amountSat * 1000),
-          );
 
     // 12. Return the payment hash as a hex string
-    return hash.field0.toString();
+    return '0x';
   }
 
   @override
@@ -267,25 +213,9 @@ class LightningWalletService implements WalletService {
     }
 
     // 13. Get all payments of the node
-    final payments = await _node!.listPayments();
 
     // 14. Filter the payments to only include successful ones and return them as a list of `TransactionEntity` instances.
-    return payments
-        .where((payment) => payment.status == PaymentStatus.succeeded)
-        .map((payment) {
-      return TransactionEntity(
-        id: payment.id.field0.toString(),
-        receivedAmountSat: payment.direction == PaymentDirection.inbound &&
-                payment.amountMsat != null
-            ? (payment.amountMsat! ~/ BigInt.from(1000)).toInt()
-            : 0,
-        sentAmountSat: payment.direction == PaymentDirection.outbound &&
-                payment.amountMsat != null
-            ? (payment.amountMsat! ~/ BigInt.from(1000)).toInt()
-            : 0,
-        timestamp: null,
-      );
-    }).toList();
+    return [];
   }
 
   Future<void> _initialize(Mnemonic mnemonic) async {
@@ -300,19 +230,13 @@ class LightningWalletService implements WalletService {
     //  Sync server url to source the network graph data from:
     //  https://mutinynet.ltbl.io/snapshot
     // 16. Add the following LSP to be able to request LSPS2 JIT channels:
-    //  Node Pubkey: 0371d6fd7d75de2d0372d03ea00e8bacdacb50c27d0eaea0a76a0622eff1f5ef2b
-    //  Node Address: 44.219.111.31:39735
-    //  Access token: JZWN9YLW
-    final builder = Builder.mutinynet().setEntropyBip39Mnemonic(
-      mnemonic: mnemonic,
-    );
+    //  Node Pubkey: 02de89e79fd4adfd5f15b5f09efa60250f5fcc62b8cda477a1cfab38d0bb53dd96
+    //  Node Address: 192.243.215.101:27110
 
     // 3. Build the node from the builder and assign it to the `_node` variable
     //  so it can be used in the rest of the class.
-    _node = await builder.build();
 
     // 4. Start the node
-    await _node!.start();
 
     _printLogs();
   }
@@ -340,7 +264,7 @@ class LightningWalletService implements WalletService {
     for (int i = 0; i < contents.length; i += chunkSize) {
       int end =
           (i + chunkSize < contents.length) ? i + chunkSize : contents.length;
-      print(contents.substring(i, end));
+      debugPrint(contents.substring(i, end));
     }
   }
 }
