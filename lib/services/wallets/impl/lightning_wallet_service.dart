@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:ldk_node_flutter_workshop/entities/transaction_entity.dart';
 import 'package:ldk_node_flutter_workshop/enums/wallet_type.dart';
 import 'package:ldk_node_flutter_workshop/repositories/mnemonic_repository.dart';
@@ -26,7 +27,7 @@ class LightningWalletService implements WalletService {
     if (mnemonic != null && mnemonic.isNotEmpty) {
       await _initialize(Mnemonic(seedPhrase: mnemonic));
 
-      print(
+      debugPrint(
         'Lightning node initialized with id: ${(await _node!.nodeId()).hex}',
       );
     }
@@ -37,7 +38,7 @@ class LightningWalletService implements WalletService {
     // 1. Use ldk_node's Mnemonic class to generate a new, valid mnemonic
     final mnemonic = Mnemonic(seedPhrase: 'invalid mnemonic');
 
-    print('Generated mnemonic: ${mnemonic.seedPhrase}');
+    debugPrint('Generated mnemonic: ${mnemonic.seedPhrase}');
 
     await _mnemonicRepository.setMnemonic(
       _walletType.label,
@@ -47,7 +48,7 @@ class LightningWalletService implements WalletService {
     await _initialize(mnemonic);
 
     if (_node != null) {
-      print(
+      debugPrint(
         'Lightning Node added with node id: ${(await _node!.nodeId()).hex}',
       );
     }
@@ -95,7 +96,7 @@ class LightningWalletService implements WalletService {
     }
 
     // 17. Get the total inbound liquidity in satoshis by summing up the inbound
-    //  capacity of all channels that are usable ad return it in satoshis.
+    //  capacity of all channels that are usable and return it in satoshis.
     return 0;
   }
 
@@ -103,7 +104,7 @@ class LightningWalletService implements WalletService {
   Future<(String?, String?)> generateInvoices({
     int? amountSat,
     int expirySecs = 3600 * 24, // Default to 1 day
-    String? description,
+    String description = '',
   }) async {
     if (_node == null) {
       throw NoWalletException('A Lightning node has to be initialized first!');
@@ -111,11 +112,17 @@ class LightningWalletService implements WalletService {
 
     // 7. Based on an amount of sats being passed or not, generate a bolt11 invoice
     //  to receive a fixed amount or a variable amount of sats.
-
-    // 18. Change to receive via a JIT channel when no amount is specified
-
-    // 19. Check the inbound liquidity and request a JIT channel if needed
-    //  otherwise receive the payment as usual.
+    try {
+      if (amountSat == null) {
+        // 18. Change to receive via a JIT channel when no amount is specified
+      } else {
+        // 19. Check the inbound liquidity and request a JIT channel if needed
+        //  otherwise receive the payment as usual.
+      }
+    } catch (e) {
+      final errorMessage = 'Failed to generate invoice: $e';
+      debugPrint(errorMessage);
+    }
 
     // 8. As a fallback, also generate a new on-chain address to receive funds
     //  in case the sender doesn't support Lightning payments.
@@ -130,7 +137,7 @@ class LightningWalletService implements WalletService {
     }
 
     final balances = await _node!.listBalances();
-    return balances.totalOnchainBalanceSats;
+    return balances.totalOnchainBalanceSats.toInt();
   }
 
   Future<int> get spendableOnChainBalanceSat async {
@@ -139,7 +146,7 @@ class LightningWalletService implements WalletService {
     }
 
     final balances = await _node!.listBalances();
-    return balances.spendableOnchainBalanceSats;
+    return balances.spendableOnchainBalanceSats.toInt();
   }
 
   Future<String> drainOnChainFunds(String address) async {
@@ -161,7 +168,7 @@ class LightningWalletService implements WalletService {
     final onChainPayment = await _node!.onChainPayment();
     final tx = await onChainPayment.sendToAddress(
       address: Address(s: address),
-      amountSats: amountSat,
+      amountSats: BigInt.from(amountSat),
     );
     return tx.hash;
   }
@@ -223,16 +230,15 @@ class LightningWalletService implements WalletService {
     //  Sync server url to source the network graph data from:
     //  https://mutinynet.ltbl.io/snapshot
     // 16. Add the following LSP to be able to request LSPS2 JIT channels:
-    //  Node Pubkey: 0371d6fd7d75de2d0372d03ea00e8bacdacb50c27d0eaea0a76a0622eff1f5ef2b
-    //  Node Address: 44.219.111.31:39735
-    //  Access token: JZWN9YLW
+    //  Node Pubkey: 02de89e79fd4adfd5f15b5f09efa60250f5fcc62b8cda477a1cfab38d0bb53dd96
+    //  Node Address: 192.243.215.101:27110
 
     // 3. Build the node from the builder and assign it to the `_node` variable
     //  so it can be used in the rest of the class.
 
     // 4. Start the node
 
-    _printLogs();
+    //_printLogs();
   }
 
   Future<String> get _nodePath async {
@@ -258,7 +264,7 @@ class LightningWalletService implements WalletService {
     for (int i = 0; i < contents.length; i += chunkSize) {
       int end =
           (i + chunkSize < contents.length) ? i + chunkSize : contents.length;
-      print(contents.substring(i, end));
+      debugPrint(contents.substring(i, end));
     }
   }
 }
