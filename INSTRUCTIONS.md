@@ -157,7 +157,7 @@ Future<int> getSpendableBalanceSat() async {
 
 ### Receive a payment
 
-In the Lightning Network, the standard way to request payments is by creating invoices. Invoices with a prefixed amount are most common and most secure, but invoices without a prefixed amount can also be created, they are generally called zero-amount invoices. Because we don't have any channels yet, we will use a receive via JIT channel.
+In the Lightning Network, the standard way to request payments is by creating invoices. Invoices with a prefixed amount are most common and most secure, but invoices without a prefixed amount can also be created, they are generally called zero-amount invoices. You can create both with LDK Node, through the `receive` and `receiveVariableAmount` functions of a `Bolt11Payment` instance. Because we don't have any channels yet, we will use a receive via JIT channel for now, using `receiveViaJitChannel` and `receiveVariableAmountViaJitChannel` respectively.
 
 In the app we use the BIP21 format, also known as unified QR codes. This format permits to encode both Bitcoin addresses and Lightning Network invoices in the same QR code. This can be used to share a Bitcoin address as a fallback in case the sender does not support Lightning payments. So the `generateInvoices` function should return both a Bitcoin address and a Lightning Network invoice as a tuple, so the app can generate a QR code with both.
 
@@ -184,6 +184,10 @@ Future<(String?, String?)> generateInvoices({
 ```
 
 Once you have implemented the generateInvoices correctly, you should be able to see the QR code of the generated invoice in the app when you press the `Generate invoice` button in the Receive tab of the wallet actions with the spending wallet selected.
+
+#### Bolt12
+
+LDK Node already implements the more recent Bolt12 standard for invoices through static offers. We will not use this in this workshop, but you can try it out for yourself by using the `Bolt12Payment` class and its functions.
 
 ### Pay an invoice
 
@@ -270,13 +274,14 @@ Future<void> _initialize(Mnemonic mnemonic) async {
           [
             const SocketAddress.hostname(addr: '0.0.0.0', port: 9735),
           ],
-        ).setLiquiditySourceLsps2(
+        )
+        .setLiquiditySourceLsps2(
           address: const SocketAddress.hostname(
             addr: '44.219.111.31',
             port: 39735,
           ),
           publicKey: const PublicKey(
-            hex:
+            hexCode:
                 '0371d6fd7d75de2d0372d03ea00e8bacdacb50c27d0eaea0a76a0622eff1f5ef2b',
           ),
           token: 'JZWN9YLW',

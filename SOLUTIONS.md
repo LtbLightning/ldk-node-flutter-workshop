@@ -38,16 +38,35 @@ Future<void> _initialize(Mnemonic mnemonic) async {
   //    - the network to signet,
   //    - the Esplora server URL to `https://mutinynet.ltbl.io/api/`
   //    - a listening address to 0.0.0.0:9735
+  //    - an LSPS2 compatible LSP to be able to request JIT channels:
+  //        Node Pubkey: 0371d6fd7d75de2d0372d03ea00e8bacdacb50c27d0eaea0a76a0622eff1f5ef2b
+  //        Node Address: 44.219.111.31:39735
+  //        Access token: JZWN9YLW
   final builder = Builder()
         .setEntropyBip39Mnemonic(mnemonic: mnemonic)
         .setStorageDirPath(await _nodePath)
         .setNetwork(Network.signet)
         .setEsploraServer('https://mutinynet.ltbl.io/api/')
         .setListeningAddresses(
-            [const SocketAddress.hostname(addr: '0.0.0.0', port: 9735)]);
+            [
+                const SocketAddress.hostname(addr: '0.0.0.0', port: 9735),
+            ],
+        ).setLiquiditySourceLsps2(
+            address: const SocketAddress.hostname(
+                addr: '44.219.111.31',
+                port: 39735,
+            ),
+            publicKey: const PublicKey(
+                hexCode:
+                    '0371d6fd7d75de2d0372d03ea00e8bacdacb50c27d0eaea0a76a0622eff1f5ef2b',
+            ),
+            token: 'JZWN9YLW',
+        );
+
   // 3. Build the node from the builder and assign it to the `_node` variable
   //  so it can be used in the rest of the class.
   _node = await builder.build();
+
   // 4. Start the node
   await _node!.start();
 
@@ -68,12 +87,12 @@ Future<int> getSpendableBalanceSat() async {
     final usableChannels =
         (await _node!.listChannels()).where((channel) => channel.isUsable);
     final outboundCapacityMsat = usableChannels.fold(
-      0,
+      BigInt.zero,
       (sum, channel) => sum + channel.outboundCapacityMsat,
     );
 
     // 6. Return the balance in sats
-    return outboundCapacityMsat ~/ 1000;
+    return (outboundCapacityMsat ~/ BigInt.from(1000)).toInt();
 }
 ```
 
@@ -84,25 +103,25 @@ Future<int> getSpendableBalanceSat() async {
 Future<(String?, String?)> generateInvoices({
     int? amountSat,
     int expirySecs = 3600 * 24, // Default to 1 day
-    String description = 'BBE Workshop',
+    String description = 'LDK Node Flutter Workshop',
 }) async {
     if (_node == null) {
       throw NoWalletException('A Lightning node has to be initialized first!');
     }
 
-    // 7. Based on an amount of sats being passed or not, generate a bolt11 payment
-    //  invoice to receive a fixed amount or a variable amount of sats.
+    // 7. Based on an amount of sats being passed or not, generate a bolt11 invoice
+    //  to receive a fixed amount or a variable amount of sats through a JIT channel.
     Bolt11Payment bolt11Payment = await _node!.bolt11Payment();
     Bolt11Invoice? bolt11;
     try {
       if (amountSat == null) {
-        bolt11 = await bolt11Payment.receiveVariableAmount(
+        bolt11 = await bolt11Payment.receiveVariableAmountViaJitChannel(
           expirySecs: expirySecs,
           description: description,
         );
       } else {
-        bolt11 = await bolt11Payment.receive(
-          amountMsat: amountSat * 1000,
+        bolt11 = await bolt11Payment.receiveViaJitChannel(
+          amountMsat: BigInt.from(amountSat * 1000),
           expirySecs: expirySecs,
           description: description,
         );
@@ -125,34 +144,6 @@ Future<(String?, String?)> generateInvoices({
 }
 ```
 
-### Open a channel
-
-```dart
-Future<String> openChannel({
-    required String host,
-    required int port,
-    required String nodeId,
-    required int channelAmountSat,
-    bool announceChannel = false,
-}) async {
-    if (_node == null) {
-        throw NoWalletException('A Lightning node has to be initialized first!');
-    }
-
-    // 10. Connect to a node and open a new channel.
-    await _node!.connectOpenChannel(
-        socketAddress: SocketAddress.hostname(addr: host, port: port),
-        nodeId: PublicKey(
-            hex: nodeId,
-        ),
-        channelAmountSats: channelAmountSat,
-        announceChannel: announceChannel,
-        channelConfig: null,
-        pushToCounterpartyMsat: null,
-    );
-}
-```
-
 ### Pay an invoice
 
 ```dart
@@ -167,7 +158,7 @@ Future<String> pay(
         throw NoWalletException('A Lightning node has to be initialized first!');
     }
 
-    // 11. Use the node to create and send a payment.
+    // 10. Use the node to create and send a payment.
     //  If the amount is not specified, suppose it is embeded in the invoice.
     //  If the amount is specified, suppose the invoice is a zero-amount invoice and specify the amount when sending the payment.
     final bolt11Payment = await _node!.bolt11Payment();
@@ -181,10 +172,10 @@ Future<String> pay(
             invoice: Bolt11Invoice(
               signedRawInvoice: invoice,
             ),
-            amountMsat: amountSat * 1000,
+            amountMsat: BigInt.from(amountSat * 1000),
         );
 
-    // 12. Return the payment hash as a hex string
+    // 11. Return the payment hash as a hex string
     return hash.field0.toString();
 }
 ```
@@ -198,10 +189,10 @@ Future<List<TransactionEntity>> getTransactions() async {
         throw NoWalletException('A Lightning node has to be initialized first!');
     }
 
-    // 13. Get all payments of the node
+    // 12. Get all payments of the node
     final payments = await _node!.listPayments();
 
-    // 14. Filter the payments to only include successful ones and return them as a list of `TransactionEntity` instances.
+    // 13. Filter the payments to only include successful ones and return them as a list of `TransactionEntity` instances.
     return payments
         .where((payment) => payment.status == PaymentStatus.succeeded)
         .map((payment) {
@@ -209,11 +200,11 @@ Future<List<TransactionEntity>> getTransactions() async {
             id: payment.id.field0.toString(),
             receivedAmountSat: payment.direction == PaymentDirection.inbound &&
                     payment.amountMsat != null
-                ? payment.amountMsat! ~/ 1000
+                ? (payment.amountMsat! ~/ BigInt.from(1000)).toInt()
                 : 0,
             sentAmountSat: payment.direction == PaymentDirection.outbound &&
                     payment.amountMsat != null
-                ? payment.amountMsat! ~/ 1000
+                ? (payment.amountMsat! ~/ BigInt.from(1000)).toInt()
                 : 0,
             timestamp: null,
         );
@@ -225,7 +216,7 @@ Future<List<TransactionEntity>> getTransactions() async {
 
 ```dart
 Future<void> _initialize(Mnemonic mnemonic) async {
-    // 15. Add the following url to the Builder instance as the Rapid Gossip Sync server url to source the network graph data from: https://mutinynet.ltbl.io/snapshot
+    // 14. Add the following url to the Builder instance as the Rapid Gossip Sync server url to source the network graph data from: https://mutinynet.ltbl.io/snapshot
     final builder = Builder()
         .setEntropyBip39Mnemonic(mnemonic: mnemonic)
         .setStorageDirPath(await _nodePath)
@@ -235,8 +226,17 @@ Future<void> _initialize(Mnemonic mnemonic) async {
           [
             const SocketAddress.hostname(addr: '0.0.0.0', port: 9735),
           ],
-        )
-        .setGossipSourceRgs('https://mutinynet.ltbl.io/snapshot');
+        ).setLiquiditySourceLsps2(
+            address: const SocketAddress.hostname(
+                addr: '44.219.111.31',
+                port: 39735,
+            ),
+            publicKey: const PublicKey(
+                hexCode:
+                    '0371d6fd7d75de2d0372d03ea00e8bacdacb50c27d0eaea0a76a0622eff1f5ef2b',
+            ),
+            token: 'JZWN9YLW',
+        ).setGossipSourceRgs('https://mutinynet.ltbl.io/snapshot');
 
     _node = await builder.build();
 
@@ -246,46 +246,7 @@ Future<void> _initialize(Mnemonic mnemonic) async {
 }
 ```
 
-### JIT channels with LSPS2
-
-#### Set the LSPS2 Liquidity Source
-
-```dart
-Future<void> _initialize(Mnemonic mnemonic) async {
-    // 16. Add the following LSP to be able to request LSPS2 JIT channels:
-    //  Node Pubkey: 02de89e79fd4adfd5f15b5f09efa60250f5fcc62b8cda477a1cfab38d0bb53dd96
-    //  Node Address: 192.243.215.101:27110
-    final builder = Builder()
-        .setEntropyBip39Mnemonic(mnemonic: mnemonic)
-        .setStorageDirPath(await _nodePath)
-        .setNetwork(Network.signet)
-        .setEsploraServer('https://mutinynet.ltbl.io/api')
-        .setListeningAddresses(
-          [
-            const SocketAddress.hostname(addr: '0.0.0.0', port: 9735),
-          ],
-        )
-        .setGossipSourceRgs('https://mutinynet.ltbl.io/snapshot')
-        .setLiquiditySourceLsps2(
-          address: const SocketAddress.hostname(
-            addr: '192.243.215.101',
-            port: 27110,
-          ),
-          publicKey: const PublicKey(
-            hex:
-                '02de89e79fd4adfd5f15b5f09efa60250f5fcc62b8cda477a1cfab38d0bb53dd96',
-          ),
-        );
-
-    _node = await builder.build();
-
-    await _node!.start();
-
-    await _printLogs();
-}
-```
-
-#### Check inbound liquidity
+### Check inbound liquidity
 
 ```dart
 Future<int> get inboundLiquiditySat async {
@@ -293,69 +254,43 @@ Future<int> get inboundLiquiditySat async {
       return 0;
     }
 
-    // 17. Get the total inbound liquidity in satoshis by summing up the inbound
+    // 15. Get the total inbound liquidity in satoshis by summing up the inbound
     //  capacity of all channels that are usable and return it in satoshis.
     final usableChannels =
         (await _node!.listChannels()).where((channel) => channel.isUsable);
     final inboundCapacityMsat = usableChannels.fold(
-        0,
-        (sum, channel) => sum + channel.inboundCapacityMsat,
+      BigInt.zero,
+      (sum, channel) => sum + channel.inboundCapacityMsat,
     );
 
-    return inboundCapacityMsat ~/ 1000;
+    return (inboundCapacityMsat ~/ BigInt.from(1000)).toInt();
 }
 ```
 
-#### Request JIT channels
+### Open a channel
 
 ```dart
-@override
-Future<(String?, String?)> generateInvoices({
-  int? amountSat,
-  int expirySecs = 3600 * 24, // Default to 1 day
-  String description = 'BBE Workshop',
+Future<String> openChannel({
+    required String host,
+    required int port,
+    required String nodeId,
+    required int channelAmountSat,
+    bool announceChannel = false,
 }) async {
     if (_node == null) {
         throw NoWalletException('A Lightning node has to be initialized first!');
     }
 
-    Bolt11Payment bolt11Payment = await _node!.bolt11Payment();
-    Bolt11Invoice? bolt11;
-    try {
-        if (amountSat == null) {
-            // 18. Change to receive via a JIT channel when no amount is specified
-            bolt11 = await bolt11Payment.receiveVariableAmountViaJitChannel(
-            expirySecs: expirySecs,
-            description: description,
-            );
-        } else {
-            // 19. Check the inbound liquidity and request a JIT channel if needed
-            //  otherwise receive the payment as usual.
-            if (await inboundLiquiditySat < amountSat) {
-                bolt11 = await _node!.receiveViaJitChannel(
-                    amountMsat: amountSat * 1000,
-                    expirySecs: expirySecs,
-                    description: description,
-                );
-            } else {
-                bolt11 = await _node!.receive(
-                    amountMsat: amountSat * 1000,
-                    expirySecs: expirySecs,
-                    description: description,
-                );
-            }
-        }
-    } catch (e) {
-        final errorMessage = 'Failed to generate invoice: $e';
-        print(errorMessage);
-    }
-
-    final onChainPayment = await _node!.onChainPayment();
-    final bitcoinAddress = await onChainPayment.newAddress();
-
-    print('Generated invoice: ${bolt11?.signedRawInvoice}');
-    print('Generated address: ${bitcoinAddress.s}');
-
-    return (bitcoinAddress.s, bolt11 == null ? '' : bolt11.signedRawInvoice);
+    // 16. Connect to a node and open a new channel.
+    await _node!.connectOpenChannel(
+      socketAddress: SocketAddress.hostname(addr: host, port: port),
+      nodeId: PublicKey(
+        hex: nodeId,
+      ),
+      channelAmountSats: BigInt.from(channelAmountSat),
+      announceChannel: announceChannel,
+      channelConfig: null,
+      pushToCounterpartyMsat: null,
+    );
 }
 ```
