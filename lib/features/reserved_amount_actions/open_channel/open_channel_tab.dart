@@ -15,10 +15,10 @@ class OpenChannelTab extends StatefulWidget {
 
 class OpenChannelTabState extends State<OpenChannelTab> {
   OpenChannelState _state = const OpenChannelState(
-    host: '45.79.52.207',
-    port: 9735,
+    host: '192.243.215.101',
+    port: 27110,
     nodeId:
-        '02465ed5be53d04fde66c9418ff14a5f2267723810176c9212b722e542dc1afb1b',
+        '02de89e79fd4adfd5f15b5f09efa60250f5fcc62b8cda477a1cfab38d0bb53dd96',
     announceChannel: true,
   );
   late OpenChannelController _controller;
