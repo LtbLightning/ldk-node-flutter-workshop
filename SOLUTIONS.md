@@ -39,9 +39,8 @@ Future<void> _initialize(Mnemonic mnemonic) async {
   //    - the Esplora server URL to `https://mutinynet.ltbl.io/api/`
   //    - a listening address to 0.0.0.0:9735
   //    - an LSPS2 compatible LSP to be able to request JIT channels:
-  //        Node Pubkey: 0371d6fd7d75de2d0372d03ea00e8bacdacb50c27d0eaea0a76a0622eff1f5ef2b
-  //        Node Address: 44.219.111.31:39735
-  //        Access token: JZWN9YLW
+  //        Node Pubkey: 02de89e79fd4adfd5f15b5f09efa60250f5fcc62b8cda477a1cfab38d0bb53dd96
+  //        Node Address: 192.243.215.101:27110
   final builder = Builder()
         .setEntropyBip39Mnemonic(mnemonic: mnemonic)
         .setStorageDirPath(await _nodePath)
@@ -53,14 +52,13 @@ Future<void> _initialize(Mnemonic mnemonic) async {
             ],
         ).setLiquiditySourceLsps2(
             address: const SocketAddress.hostname(
-                addr: '44.219.111.31',
-                port: 39735,
+                addr: '192.243.215.101',
+                port: 27110,
             ),
             publicKey: const PublicKey(
-                hexCode:
-                    '0371d6fd7d75de2d0372d03ea00e8bacdacb50c27d0eaea0a76a0622eff1f5ef2b',
+                hex:
+                    '02de89e79fd4adfd5f15b5f09efa60250f5fcc62b8cda477a1cfab38d0bb53dd96',
             ),
-            token: 'JZWN9YLW',
         );
 
   // 3. Build the node from the builder and assign it to the `_node` variable
@@ -228,14 +226,13 @@ Future<void> _initialize(Mnemonic mnemonic) async {
           ],
         ).setLiquiditySourceLsps2(
             address: const SocketAddress.hostname(
-                addr: '44.219.111.31',
-                port: 39735,
+                addr: '192.243.215.101',
+                port: 27110,
             ),
             publicKey: const PublicKey(
-                hexCode:
-                    '0371d6fd7d75de2d0372d03ea00e8bacdacb50c27d0eaea0a76a0622eff1f5ef2b',
-            ),
-            token: 'JZWN9YLW',
+                hex:
+                    '02de89e79fd4adfd5f15b5f09efa60250f5fcc62b8cda477a1cfab38d0bb53dd96',
+            )
         ).setGossipSourceRgs('https://mutinynet.ltbl.io/snapshot');
 
     _node = await builder.build();
