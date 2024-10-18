@@ -36,7 +36,7 @@ class LightningWalletService implements WalletService {
   @override
   Future<void> addWallet() async {
     // 1. Use ldk_node's Mnemonic class to generate a new, valid mnemonic
-    final mnemonic = Mnemonic(seedPhrase: 'invalid mnemonic');
+    final mnemonic = await Mnemonic.generate();
 
     debugPrint('Generated mnemonic: ${mnemonic.seedPhrase}');
 
@@ -85,9 +85,15 @@ class LightningWalletService implements WalletService {
     }
 
     // 5. Get all channels of the node and sum the usable channels' outbound capacity
+    final usableChannels =
+        (await _node!.listChannels()).where((channel) => channel.isUsable);
+    final outboundCapacityMsat = usableChannels.fold(
+      BigInt.zero,
+      (sum, channel) => sum + channel.outboundCapacityMsat,
+    );
 
     // 6. Return the balance in sats
-    return 0;
+    return (outboundCapacityMsat ~/ BigInt.from(1000)).toInt();
   }
 
   @override
@@ -102,9 +108,22 @@ class LightningWalletService implements WalletService {
 
     // 7. Based on an amount of sats being passed or not, generate a bolt11 invoice
     //  to receive a fixed amount or a variable amount of sats through a JIT channel.
+
+    Bolt11Payment bolt11Payment = await _node!.bolt11Payment();
+    Bolt11Invoice? bolt11;
     try {
       if (amountSat == null) {
-      } else {}
+        bolt11 = await bolt11Payment.receiveVariableAmountViaJitChannel(
+          expirySecs: expirySecs,
+          description: description,
+        );
+      } else {
+        bolt11 = await bolt11Payment.receiveViaJitChannel(
+          amountMsat: BigInt.from(amountSat * 1000),
+          expirySecs: expirySecs,
+          description: description,
+        );
+      }
     } catch (e) {
       final errorMessage = 'Failed to generate invoice: $e';
       debugPrint(errorMessage);
@@ -112,9 +131,11 @@ class LightningWalletService implements WalletService {
 
     // 8. As a fallback, also generate a new on-chain address to receive funds
     //  in case the sender doesn't support Lightning payments.
+    final onChainPayment = await _node!.onChainPayment();
+    final bitcoinAddress = await onChainPayment.newAddress();
 
     // 9. Return the bitcoin address and the bolt11 invoice
-    return ('invalid Bitcoin address', 'invalid bolt11 invoice');
+    return (bitcoinAddress.s, bolt11 == null ? '' : bolt11.signedRawInvoice);
   }
 
   @override
@@ -131,9 +152,22 @@ class LightningWalletService implements WalletService {
     // 10. Use the node to send a payment.
     //  If the amount is not specified, suppose it is embeded in the invoice.
     //  If the amount is specified, suppose the invoice is a zero-amount invoice and specify the amount when sending the payment.
+    final bolt11Payment = await _node!.bolt11Payment();
+    final hash = amountSat == null
+        ? await bolt11Payment.send(
+            invoice: Bolt11Invoice(
+              signedRawInvoice: invoice,
+            ),
+          )
+        : await bolt11Payment.sendUsingAmount(
+            invoice: Bolt11Invoice(
+              signedRawInvoice: invoice,
+            ),
+            amountMsat: BigInt.from(amountSat * 1000),
+          );
 
     // 11. Return the payment hash as a hex string
-    return '0x';
+    return hash.field0.toString();
   }
 
   @override
@@ -143,9 +177,25 @@ class LightningWalletService implements WalletService {
     }
 
     // 12. Get all payments of the node
+    final payments = await _node!.listPayments();
 
     // 13. Filter the payments to only include successful ones and return them as a list of `TransactionEntity` instances.
-    return [];
+    return payments
+        .where((payment) => payment.status == PaymentStatus.succeeded)
+        .map((payment) {
+      return TransactionEntity(
+        id: payment.id.field0.toString(),
+        receivedAmountSat: payment.direction == PaymentDirection.inbound &&
+                payment.amountMsat != null
+            ? (payment.amountMsat! ~/ BigInt.from(1000)).toInt()
+            : 0,
+        sentAmountSat: payment.direction == PaymentDirection.outbound &&
+                payment.amountMsat != null
+            ? (payment.amountMsat! ~/ BigInt.from(1000)).toInt()
+            : 0,
+        timestamp: null,
+      );
+    }).toList();
   }
 
   Future<int> get inboundLiquiditySat async {
@@ -246,13 +296,32 @@ class LightningWalletService implements WalletService {
     // 14. Add the following url to the Builder instance as the Rapid Gossip
     //  Sync server url to source the network graph data from:
     //  https://mutinynet.ltbl.io/snapshot
-
+    final builder = Builder()
+        .setEntropyBip39Mnemonic(mnemonic: mnemonic)
+        .setStorageDirPath(await _nodePath)
+        .setNetwork(Network.signet)
+        .setEsploraServer('https://mutinynet.ltbl.io/api/')
+        .setListeningAddresses(
+      [
+        const SocketAddress.hostname(addr: '0.0.0.0', port: 9735),
+      ],
+    ).setLiquiditySourceLsps2(
+      address: const SocketAddress.hostname(
+        addr: '192.243.215.101',
+        port: 27110,
+      ),
+      publicKey: const PublicKey(
+        hex:
+            '02de89e79fd4adfd5f15b5f09efa60250f5fcc62b8cda477a1cfab38d0bb53dd96',
+      ),
+      //token: 'WMXGP810',
+    );
     // 3. Build the node from the builder and assign it to the `_node` variable
     //  so it can be used in the rest of the class.
-
+    _node = await builder.build();
     // 4. Start the node
-
-    //_printLogs();
+    await _node!.start();
+    _printLogs();
   }
 
   Future<String> get _nodePath async {
