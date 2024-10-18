@@ -57,7 +57,7 @@ Future<void> _initialize(Mnemonic mnemonic) async {
                 port: 39735,
             ),
             publicKey: const PublicKey(
-                hexCode:
+                hex:
                     '0371d6fd7d75de2d0372d03ea00e8bacdacb50c27d0eaea0a76a0622eff1f5ef2b',
             ),
             token: 'JZWN9YLW',
@@ -232,7 +232,7 @@ Future<void> _initialize(Mnemonic mnemonic) async {
                 port: 39735,
             ),
             publicKey: const PublicKey(
-                hexCode:
+                hex:
                     '0371d6fd7d75de2d0372d03ea00e8bacdacb50c27d0eaea0a76a0622eff1f5ef2b',
             ),
             token: 'JZWN9YLW',
