@@ -240,9 +240,8 @@ class LightningWalletService implements WalletService {
     //    - the Esplora server URL to `https://mutinynet.ltbl.io/api/`
     //    - a listening address to 0.0.0.0:9735
     //    - an LSPS2 compatible LSP to be able to request JIT channels:
-    //        Node Pubkey: 0371d6fd7d75de2d0372d03ea00e8bacdacb50c27d0eaea0a76a0622eff1f5ef2b
-    //        Node Address: 44.219.111.31:39735
-    //        Access token: JZWN9YLW
+    //        Node Pubkey: 02de89e79fd4adfd5f15b5f09efa60250f5fcc62b8cda477a1cfab38d0bb53dd96
+    //        Node Address: 192.243.215.101:27110
     // 14. Add the following url to the Builder instance as the Rapid Gossip
     //  Sync server url to source the network graph data from:
     //  https://mutinynet.ltbl.io/snapshot
