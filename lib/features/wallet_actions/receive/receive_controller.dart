@@ -35,8 +35,7 @@ class ReceiveController {
         _updateState(
             _getState().copyWith(amountSat: 0, isInvalidAmount: false));
       } else {
-        final amountBtc = double.parse(amount);
-        final int amountSat = (amountBtc * 100000000).round();
+        final amountSat = int.parse(amount);
         _updateState(
             _getState().copyWith(amountSat: amountSat, isInvalidAmount: false));
       }

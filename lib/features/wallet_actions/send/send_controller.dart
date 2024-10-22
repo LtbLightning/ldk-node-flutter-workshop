@@ -36,8 +36,7 @@ class SendController {
       if (amount == null || amount.isEmpty) {
         _updateState(state.copyWith(clearAmountSat: true, clearError: true));
       } else {
-        final amountBtc = double.parse(amount);
-        final int amountSat = (amountBtc * 100000000).round();
+        final amountSat = int.parse(amount);
 
         if (amountSat > await _selectedWalletService.getSpendableBalanceSat()) {
           _updateState(state.copyWith(

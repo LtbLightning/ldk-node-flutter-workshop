@@ -51,14 +51,14 @@ class SendTabState extends State<SendTab> {
         SizedBox(
           width: 250,
           child: TextField(
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            keyboardType: const TextInputType.numberWithOptions(),
             decoration: InputDecoration(
               border: const OutlineInputBorder(),
               labelText: _state.selectedWallet == WalletType.lightning
                   ? 'Amount (optional)'
                   : 'Amount',
-              hintText: '0',
-              helperText: 'The amount you want to send in BTC.',
+              hintText: '10000',
+              helperText: 'The amount you want to send in sats.',
             ),
             onChanged: _controller.amountChangeHandler,
           ),
