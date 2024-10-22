@@ -54,6 +54,143 @@ class LightningWalletService implements WalletService {
     }
   }
 
+  Future<void> _initialize(Mnemonic mnemonic) async {
+    // 2. To create a Lightning Node instance, ldk_node provides a Builder class.
+    //  Configure a Builder class instance by setting
+    //    - the mnemonic as the entropy to create the node's wallet/keys from
+    //    - the storage directory path to `_nodePath`,
+    //    - the network to Signet,
+    //    - the Esplora server URL to `https://mutinynet.ltbl.io/api/`
+    //    - a listening address to 0.0.0.0:9735
+    // 16. Add the following LSP to be able to request LSPS2 JIT channels:
+    //       Node Pubkey: 02de89e79fd4adfd5f15b5f09efa60250f5fcc62b8cda477a1cfab38d0bb53dd96
+    //       Node Address: 192.243.215.101:27110
+    // 20. Add the following url to the Builder instance as the Rapid Gossip Sync
+    //     server url to source the network graph data from: https://mutinynet.ltbl.io/snapshot
+
+    // 3. Build the node from the builder and assign it to the `_node` variable
+    //  so it can be used in the rest of the class.
+
+    // 4. Start the node
+
+    //_printLogs();
+  }
+
+  @override
+  Future<int> getSpendableBalanceSat() async {
+    if (_node == null) {
+      throw NoWalletException('A Lightning node has to be initialized first!');
+    }
+
+    // 5. Get all channels of the node and sum the usable channels' outbound capacity
+
+    // 6. Return the balance in sats
+    return 0;
+  }
+
+  @override
+  Future<(String?, String?)> generateInvoices({
+    int? amountSat,
+    int expirySecs = 3600 * 24, // Default to 1 day
+    String? description = 'LDK Node Workshop',
+  }) async {
+    if (_node == null) {
+      throw NoWalletException('A Lightning node has to be initialized first!');
+    }
+
+    // 7. Based on an amount of sats being passed or not, generate a bolt11 invoice
+    //  to receive a fixed amount or a variable amount of sats.
+    try {
+      if (amountSat == null) {
+        // 18. Change to receive via a JIT channel when no amount is specified
+      } else {
+        // 19. Check the inbound liquidity and request a JIT channel if needed
+        //  otherwise receive the payment as before.
+      }
+    } catch (e) {
+      final errorMessage = 'Failed to generate invoice: $e';
+      debugPrint(errorMessage);
+    }
+
+    // 8. As a fallback, also generate a new on-chain address to receive funds
+    //  in case the sender doesn't support Lightning payments.
+
+    // 9. Return the bitcoin address and the bolt11 invoice
+    return ('invalid Bitcoin address', 'invalid bolt11 invoice');
+  }
+
+  Future<void> openChannel({
+    required String host,
+    required int port,
+    required String nodeId,
+    required int channelAmountSat,
+    bool announceChannel = false,
+  }) async {
+    if (_node == null) {
+      throw NoWalletException('A Lightning node has to be initialized first!');
+    }
+
+    // 10. Connect to a node and open a new channel.
+  }
+
+  @override
+  Future<String> pay(
+    String invoice, {
+    int? amountSat,
+    double? satPerVbyte, // Not used in Lightning
+    int? absoluteFeeSat, // Not used in Lightning
+  }) async {
+    if (_node == null) {
+      throw NoWalletException('A Lightning node has to be initialized first!');
+    }
+
+    // 11. Use the node to send a payment.
+    //  If the amount is not specified, suppose it is embeded in the invoice.
+    //  If the amount is specified, suppose the invoice is a zero-amount invoice and specify the amount when sending the payment.
+
+    // 12. Return the payment hash as a hex string
+    return '0x';
+  }
+
+  @override
+  Future<List<TransactionEntity>> getTransactions() async {
+    if (_node == null) {
+      throw NoWalletException('A Lightning node has to be initialized first!');
+    }
+
+    // 13. Get all payments of the node
+    final payments = [];
+
+    return payments.where((payment) {
+      // 14. Get the actual status of the payment to only include successful ones
+      final status = PaymentStatus.succeeded;
+      return status == PaymentStatus.succeeded;
+    }).map((payment) {
+      // 15. Get the actual values from the payment for the following variables
+      final paymentHash = '';
+      final isIncoming = false;
+      final amountSat = 0;
+      final timestamp = null;
+
+      return TransactionEntity(
+        id: paymentHash,
+        receivedAmountSat: isIncoming ? amountSat : 0,
+        sentAmountSat: !isIncoming ? amountSat : 0,
+        timestamp: timestamp,
+      );
+    }).toList();
+  }
+
+  Future<int> get inboundLiquiditySat async {
+    if (_node == null) {
+      return 0;
+    }
+
+    // 17. Get the total inbound liquidity in satoshis by summing up the inbound
+    //  capacity of all channels that are usable and return it in satoshis.
+    return 0;
+  }
+
   @override
   bool get hasWallet => _node != null;
 
@@ -76,117 +213,6 @@ class LightningWalletService implements WalletService {
     await _node!.syncWallets();
 
     await _printLogs();
-  }
-
-  @override
-  Future<int> getSpendableBalanceSat() async {
-    if (_node == null) {
-      throw NoWalletException('A Lightning node has to be initialized first!');
-    }
-
-    // 5. Get all channels of the node and sum the usable channels' outbound capacity
-
-    // 6. Return the balance in sats
-    return 0;
-  }
-
-  @override
-  Future<(String?, String?)> generateInvoices({
-    int? amountSat,
-    int expirySecs = 3600 * 24, // Default to 1 day
-    String description = '',
-  }) async {
-    if (_node == null) {
-      throw NoWalletException('A Lightning node has to be initialized first!');
-    }
-
-    // 7. Based on an amount of sats being passed or not, generate a bolt11 invoice
-    //  to receive a fixed amount or a variable amount of sats through a JIT channel.
-    try {
-      if (amountSat == null) {
-      } else {}
-    } catch (e) {
-      final errorMessage = 'Failed to generate invoice: $e';
-      debugPrint(errorMessage);
-    }
-
-    // 8. As a fallback, also generate a new on-chain address to receive funds
-    //  in case the sender doesn't support Lightning payments.
-
-    // 9. Return the bitcoin address and the bolt11 invoice
-    return ('invalid Bitcoin address', 'invalid bolt11 invoice');
-  }
-
-  @override
-  Future<String> pay(
-    String invoice, {
-    int? amountSat,
-    double? satPerVbyte, // Not used in Lightning
-    int? absoluteFeeSat, // Not used in Lightning
-  }) async {
-    if (_node == null) {
-      throw NoWalletException('A Lightning node has to be initialized first!');
-    }
-
-    // 10. Use the node to send a payment.
-    //  If the amount is not specified, suppose it is embeded in the invoice.
-    //  If the amount is specified, suppose the invoice is a zero-amount invoice and specify the amount when sending the payment.
-
-    // 11. Return the payment hash as a hex string
-    return '0x';
-  }
-
-  @override
-  Future<List<TransactionEntity>> getTransactions() async {
-    if (_node == null) {
-      throw NoWalletException('A Lightning node has to be initialized first!');
-    }
-
-    // 12. Get all payments of the node
-
-    // 13. Filter the payments to only include successful ones and return them as a list of `TransactionEntity` instances.
-    return [];
-  }
-
-  Future<int> get inboundLiquiditySat async {
-    if (_node == null) {
-      return 0;
-    }
-
-    // 15. Get the total inbound liquidity in satoshis by summing up the inbound
-    //  capacity of all channels that are usable and return it in satoshis.
-    final usableChannels =
-        (await _node!.listChannels()).where((channel) => channel.isUsable);
-    final inboundCapacityMsat = usableChannels.fold(
-      BigInt.zero,
-      (sum, channel) => sum + channel.inboundCapacityMsat,
-    );
-
-    return (inboundCapacityMsat ~/ BigInt.from(1000)).toInt();
-  }
-
-  Future<void> openChannel({
-    required String host,
-    required int port,
-    required String nodeId,
-    required int channelAmountSat,
-    bool announceChannel = false,
-  }) async {
-    if (_node == null) {
-      throw NoWalletException('A Lightning node has to be initialized first!');
-    }
-
-    // 16. Connect to a node and open a new channel.
-    await _node!.connectOpenChannel(
-      socketAddress: SocketAddress.hostname(addr: host, port: port),
-      nodeId: PublicKey(
-        hex: nodeId,
-      ),
-      channelAmountSats: BigInt.from(channelAmountSat),
-      announceChannel: announceChannel,
-      channelConfig: null,
-      pushToCounterpartyMsat: null,
-    );
   }
 
   Future<int> get totalOnChainBalanceSat async {
@@ -229,29 +255,6 @@ class LightningWalletService implements WalletService {
       amountSats: BigInt.from(amountSat),
     );
     return tx.hash;
-  }
-
-  Future<void> _initialize(Mnemonic mnemonic) async {
-    // 2. To create a Lightning Node instance, ldk_node provides a Builder class.
-    //  Configure a Builder class instance by setting
-    //    - the mnemonic as the entropy to create the node's wallet/keys from
-    //    - the storage directory path to `_nodePath`,
-    //    - the network to Signet,
-    //    - the Esplora server URL to `https://mutinynet.ltbl.io/api/`
-    //    - a listening address to 0.0.0.0:9735
-    //    - an LSPS2 compatible LSP to be able to request JIT channels:
-    //        Node Pubkey: 02de89e79fd4adfd5f15b5f09efa60250f5fcc62b8cda477a1cfab38d0bb53dd96
-    //        Node Address: 192.243.215.101:27110
-    // 14. Add the following url to the Builder instance as the Rapid Gossip
-    //  Sync server url to source the network graph data from:
-    //  https://mutinynet.ltbl.io/snapshot
-
-    // 3. Build the node from the builder and assign it to the `_node` variable
-    //  so it can be used in the rest of the class.
-
-    // 4. Start the node
-
-    //_printLogs();
   }
 
   Future<String> get _nodePath async {

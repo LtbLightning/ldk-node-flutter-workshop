@@ -86,34 +86,7 @@ Future<void> addWallet() async {
 
 ### Lightning Node setup
 
-After generating the mnemonic, the `addWallet` function calls the `_initialize` function to set up the Lightning Node with the generated mnemonic. The `_initialize` function is not implemented and should be implemented by you. We will configure the node with an LSPS2 compatible LSP to be able to request JIT channels.
-
-#### LSPS2 source for JIT channels
-
-##### Just In Time (JIT) channels
-
-JIT channels allow a wallet to receive a Lightning payment without having to open channels and get inbound liquidity by itself. An LSP will open a zero-conf channel when a payment for the wallet reaches the node of the LSP and pass the payment through this channel. So the channel is created just in time when it is needed as the name suggests. A fee is generally deducted from the amount by the LSP for this service.
-
-Various Liquidity Service Providers and Lightning wallets and developers are working on an open standard for this feature called [LSPS2](https://github.com/BitcoinAndLightningLayerSpecs/lsp/tree/main/LSPS2). Having a standard for this feature will make it easier for wallets to integrate with different LSPs and for LSPs to provide this service to different wallets, without the need for custom integrations for each wallet-LSP pair. This gives users more choice and competition in the market.
-
-LDK Node already has the LSPS2 client functionality implemented and we can just use it in our app by configuring the LSPS2 compatible LSP we want to use in the `LightningWalletService` class.
-
-##### LSPS2 Liquidity Source configuration
-
-To configure the LSPS2 compatible LSP you want to use, you need to know the public key/node id and the address of the Lightning Node of the LSP. Possibly an access token is also needed to use an LSP and get specific quotes or liquidity capacity. You can get this information from the LSP you want to use.
-
-For example, the following is the info of a node of the [C= (C equals)](https://cequals.xyz/) LSP on Mutinynet:
-
-Node Pubkey: 0371d6fd7d75de2d0372d03ea00e8bacdacb50c27d0eaea0a76a0622eff1f5ef2b
-Node Address: 44.219.111.31:39735
-Token: JZWN9YLW
-
-Another LSP that supports LSPS2 is LQwD. (https://lqwdtech.com/) The following info can be used to connect to their node on Mutinynet:
-
-Node Pubkey: 02de89e79fd4adfd5f15b5f09efa60250f5fcc62b8cda477a1cfab38d0bb53dd96
-Node Address: 192.243.215.101:27110
-
-Use this information to configure the LSPS2 client in the `LightningWalletService` class:
+After generating the mnemonic, the `addWallet` function calls the `_initialize` function to set up the Lightning Node with the generated mnemonic. The `_initialize` function is not implemented and should be implemented by you:
 
 ```dart
 Future<void> _initialize(Mnemonic mnemonic) async {
@@ -124,26 +97,20 @@ Future<void> _initialize(Mnemonic mnemonic) async {
     //    - the network to Signet,
     //    - the Esplora server URL to `https://mutinynet.ltbl.io/api/`
     //    - a listening address to 0.0.0.0:9735
-    //    - an LSPS2 compatible LSP to be able to request JIT channels:
-    //        Node Pubkey: 02de89e79fd4adfd5f15b5f09efa60250f5fcc62b8cda477a1cfab38d0bb53dd96
-    //        Node Address: 192.243.215.101:27110
 
     // 3. Build the node from the builder and assign it to the `_node` variable
     //  so it can be used in the rest of the class.
 
     // 4. Start the node
 
-    _printLogs();
+    //_printLogs();
 }
 ```
-
-> [!TIP]
-> The `ldk_node` package offers some useful `Builder` constructors to easily set up a Lightning Node for a specific network (e.g. `Builder.mutinynet()` or `Builder.testnet()`) with default configurations and with services as Esplora, Rapid Gossip Sync already configured. Only thing you need to do is set the mnemonic. And you can also overwrite any default configuration as with a normal `Builder` instance, for example to set an LSPS2 compatible LSP with your own token.
 
 ### Get the spendable balance
 
 To get the real balance of the node, the `getSpendableBalanceSat` function should be implemented.
-The amount that can be spend is the sum of the outbound capacity of all channels that are usable.
+The amount that can be spend is the sum of the outbound capacity of all channels that are in a usable state.
 
 ```dart
 @override
@@ -161,23 +128,30 @@ Future<int> getSpendableBalanceSat() async {
 
 ### Receive a payment
 
-In the Lightning Network, the standard way to request payments is by creating invoices. Invoices with a prefixed amount are most common and most secure, but invoices without a prefixed amount can also be created, they are generally called zero-amount invoices. You can create both with LDK Node, through the `receive` and `receiveVariableAmount` functions of a `Bolt11Payment` instance. Because we don't have any channels yet, we will use a receive via JIT channel for now, using `receiveViaJitChannel` and `receiveVariableAmountViaJitChannel` respectively.
+In the Lightning Network, the standard way to request payments is by creating invoices. Invoices with a prefixed amount are most common and most secure, but invoices without a prefixed amount can also be created, they are generally called zero-amount invoices. You can create both with LDK Node, through the `receive` and `receiveVariableAmount` functions of a `Bolt11Payment` instance.
 
-In the app we use the BIP21 format, also known as unified QR codes. This format permits to encode both Bitcoin addresses and Lightning Network invoices in the same QR code. This can be used to share a Bitcoin address as a fallback in case the sender does not support Lightning payments. So the `generateInvoices` function should return both a Bitcoin address and a Lightning Network invoice as a tuple, so the app can generate a QR code with both.
+In the app we use the BIP21 format, also known as unified QR codes. This format permits to encode both Bitcoin addresses and Lightning Network invoices in the same QR code. This can be used to share a Bitcoin address as a fallback in case the sender does not support Lightning payments. So the `generateInvoices` function should return both a Bitcoin address and a Lightning Network invoice as a tuple, so the app can generate a QR code with both. Use the `onChainPayment` function of the ldk_node node instance to get a new Bitcoin address from the node's internal BDK based on-chain wallet.
 
 ```dart
 @override
 Future<(String?, String?)> generateInvoices({
     int? amountSat,
     int expirySecs = 3600 * 24, // Default to 1 day
-    String? description,
+    String? description = 'LDK Node Workshop',
 }) async {
     if (_node == null) {
       throw NoWalletException('A Lightning node has to be initialized first!');
     }
 
     // 7. Based on an amount of sats being passed or not, generate a bolt11 invoice
-    //  to receive a fixed amount or a variable amount of sats through a JIT channel.
+    //  to receive a fixed amount or a variable amount of sats.
+    try {
+      if (amountSat == null) {
+      } else {}
+    } catch (e) {
+      final errorMessage = 'Failed to generate invoice: $e';
+      debugPrint(errorMessage);
+    }
 
     // 8. As a fallback, also generate a new on-chain address to receive funds
     //  in case the sender doesn't support Lightning payments.
@@ -189,13 +163,40 @@ Future<(String?, String?)> generateInvoices({
 
 Once you have implemented the generateInvoices correctly, you should be able to see the QR code of the generated invoice in the app when you press the `Generate invoice` button in the Receive tab of the wallet actions with the spending wallet selected.
 
-#### Bolt12
+If you try to pay this invoice though, you will see that the payment will fail. This is because your node does not have any channels yet. First an on-chain bitcoin address needs to be funded and a channel needs to be opened before payments can be made and inbound liquidity can be obtained. Later, in the workshop, we will add the possibility to request JIT channels to receive payments without having to open channels and get inbound liquidity by yourself. But first, let's fund the on-chain wallet and open a channel ourselves.
 
-LDK Node already implements the more recent Bolt12 standard for invoices through static offers. We will not use this in this workshop, but you can try it out for yourself by using the `Bolt12Payment` class and its functions.
+So send some funds to the bitcoin address generated with the spending wallet. You can use (Mutiny's faucet)[https://faucet.mutinynet.com] for this if you are on the Mutinynet Signet.
+
+> [!NOTE]  
+> The LDK Node library uses the Bitcoin Development Kit under the hood to manage on-chain transactions and addresses. But it does not expose all the functionalities of the Bitcoin Development Kit. Mainly just receiving and sending funds without much control and obtaining the on-chain balances, respectively with `ldk_node` functions `sendToOnchainAddress`, `sendAllToOnchainAddress`, `totalOnchainBalanceSats` and `spendableOnchainBalanceSats` . These latter functionalities are used in some implemented functions of the `LightningWalletService` class already. If you want more on-chain functionalities and control, you will have to use the Bitcoin Development Kit directly and add a separate savings wallet as we did for you already and as you can learn in the [BDK Flutter Workshop](https://github.com/LtbLightning/bdk-flutter-workshop).
+
+### Open a channel with on-chain funds
+
+If you have received on-chain funds with your Lightning wallet, you can send these funds to another on-chain wallet or use them to open a new channel. To be able to open a channel with on-chain funds, the `openChannel` function should be implemented in the `LightningWalletService` class.
+
+Connect and open a channel with a node from which the host, port and node id are passed as parameters. The channel amount is also passed as a parameter and the channel is not announced by default, since this is a mobile wallet and not a routing node.
+
+```dart
+Future<void> openChannel({
+    required String host,
+    required int port,
+    required String nodeId,
+    required int channelAmountSat,
+    bool announceChannel = false,
+}) async {
+  if (_node == null) {
+      throw NoWalletException('A Lightning node has to be initialized first!');
+  }
+
+  // 10. Connect to a node and open a new channel.
+}
+```
+
+To get the option to open a channel, press the pending balance in the transactions overview, which should appear if you have sent funds to the bitcoin address of the spending wallet and the transaction has been confirmed.
 
 ### Pay an invoice
 
-Now that the wallet was funded and a channel was opened, you have outbound capacity and should be able to pay invoices from the 'Send funds' tab in the wallet actions bottom sheet.
+Now that the wallet was funded and a channel is opened, you have outbound capacity and should be able to pay invoices from the 'Send funds' tab in the wallet actions bottom sheet.
 
 When the button is pressed, calls propogate through the controller and the `pay` function of the `LightningWalletService` class is called. This function should pay the invoice with the given bolt11 string.
 
@@ -211,11 +212,11 @@ Future<String> pay(
       throw NoWalletException('A Lightning node has to be initialized first!');
     }
 
-    // 10. Use the node to send a payment.
+    // 11. Use the node to send a payment.
     //  If the amount is not specified, suppose it is embeded in the invoice.
     //  If the amount is specified, suppose the invoice is a zero-amount invoice and specify the amount when sending the payment.
 
-    // 11. Return the payment hash as a hex string
+    // 12. Return the payment hash as a hex string
     return '0x';
 }
 ```
@@ -234,16 +235,156 @@ Future<List<TransactionEntity>> getTransactions() async {
         throw NoWalletException('A Lightning node has to be initialized first!');
     }
 
-    // 12. Get all payments of the node
+    // 13. Get all payments of the node
+    final payments = [];
 
-    // 13. Filter the payments to only include successful ones and return them as a list of `TransactionEntity` instances.
-    return [];
+    return payments.where((payment) {
+      // 14. Get the actual status of the payment to only include successful ones
+      final status = PaymentStatus.succeeded;
+      return status == PaymentStatus.succeeded;
+    }).map((payment) {
+      // 15. Get the actual values from the payment for the following variables
+      final paymentHash = '';
+      final isIncoming = false;
+      final amountSat = 0;
+      final timestamp = null;
+
+      return TransactionEntity(
+        id: paymentHash,
+        receivedAmountSat: isIncoming ? amountSat : 0,
+        sentAmountSat: !isIncoming ? amountSat : 0,
+        timestamp: timestamp,
+      );
+    }).toList();
 }
 ```
 
 Now you have a very basic functioning Lightning wallet in your app. You can see the balance, generate invoices, pay invoices, and see the payment history.
 
-We can still improve on this though. Some additional features can be added to make the app more user-friendly. One of them is Rapid Gossip Sync. We will add it in the next steps.
+We can still improve on this though. Some additional features can be added to make the app more user-friendly.
+Like JIT channels and Rapid Gossip Sync. We will add them in the next steps.
+
+### Just In Time (JIT) channels
+
+JIT channels allow a wallet to receive a Lightning payment without having to open channels and get inbound liquidity by itself. An LSP will open a zero-conf channel when a payment for the wallet reaches the node of the LSP and pass the payment through this channel. So the channel is created just in time when it is needed as the name suggests. A fee is generally deducted from the amount by the LSP for this service.
+
+Various Liquidity Service Providers and Lightning wallets and developers are working on an open standard for this feature called [LSPS2](https://github.com/BitcoinAndLightningLayerSpecs/lsp/tree/main/LSPS2). Having a standard for this feature will make it easier for wallets to integrate with different LSPs and for LSPs to provide this service to different wallets, without the need for custom integrations for each wallet-LSP pair. This gives users more choice and competition in the market.
+
+LDK Node already has the LSPS2 client functionality implemented and we can just use it in our app by configuring the LSPS2 compatible LSP we want to use in the `LightningWalletService` class.
+
+#### LSPS2 source configuration
+
+To configure the LSPS2 compatible LSP you want to use, you need to know the public key/node id and the address of the Lightning Node of the LSP. Possibly an access token is also needed to use an LSP and get specific quotes or liquidity capacity. You can get this information from the LSP you want to use.
+
+For example, the following is the info of a node of the [C= (C equals)](https://cequals.xyz/) LSP on Mutinynet:
+
+Node Pubkey: 0371d6fd7d75de2d0372d03ea00e8bacdacb50c27d0eaea0a76a0622eff1f5ef2b
+Node Address: 44.219.111.31:39735
+Token: JZWN9YLW
+
+Another LSP that supports LSPS2 is LQwD. (https://lqwdtech.com/) The following info can be used to connect to their node on Mutinynet:
+
+Node Pubkey: 02de89e79fd4adfd5f15b5f09efa60250f5fcc62b8cda477a1cfab38d0bb53dd96
+Node Address: 192.243.215.101:27110
+
+Use this information to configure the LSPS2 client by adding it to the node builder settings in our `_initialize` function:
+
+```dart
+Future<void> _initialize(Mnemonic mnemonic) async {
+    // 16. Add the following LSP to be able to request LSPS2 JIT channels:
+    //       Node Pubkey: 02de89e79fd4adfd5f15b5f09efa60250f5fcc62b8cda477a1cfab38d0bb53dd96
+    //       Node Address: 192.243.215.101:27110
+    final builder = Builder()
+        .setEntropyBip39Mnemonic(mnemonic: mnemonic)
+        .setStorageDirPath(await _nodePath)
+        .setNetwork(Network.signet)
+        .setEsploraServer('https://mutinynet.ltbl.io/api')
+        .setListeningAddresses(
+          [
+            const SocketAddress.hostname(addr: '0.0.0.0', port: 9735),
+          ],
+        );
+
+    _node = await builder.build();
+
+    await _node!.start();
+
+    _printLogs();
+}
+```
+
+For the node to have the new configurations, we need to restart it. So reload the app to restart the node.
+In a real app, you can stop and start the node programmatically when settings are changed.
+
+Now we can request payments through LSPS2 JIT channels even if we don't have any channel yet or if we don't have inbound liquidity in our channels.
+
+#### Check inbound liquidity
+
+If a user still has sufficient inbound liquidity, they can receive payments without having to request JIT channels. A good UX would be to show the user how much inbound liquidity they have left and let him choose to request a JIT channel for an extra fee, but with more guarantee the payment will go through, or to use the inbound liquidity they have left with a normal invoice.
+
+To be able to check the inbound liquidity, get the inbound liquidity from the node in the `inboundLiquiditySat` getter in the `LightningWalletService` class. The inbound liquidity is the sum of the inbound capacity of all channels of the node.
+
+```dart
+Future<int> get inboundLiquiditySat async {
+    if (_node == null) {
+      return 0;
+    }
+
+    // 17. Get the total inbound liquidity in satoshis by summing up the inbound
+    //  capacity of all channels that are usable ad return it in satoshis.
+    return 0;
+}
+```
+
+#### Request JIT channels
+
+Now we can change the `generateInvoices` function to request JIT channels from the LSPS2 compatible LSP when the inbound liquidity is not enough to receive a payment. We will also request a JIT channel when no amount is specified in the invoice, so we can receive any amount of payment without inbound liquidity problems.
+
+```dart
+@override
+Future<(String?, String?)> generateInvoices({
+  int? amountSat,
+  int expirySecs = 3600 * 24, // Default to 1 day
+  String description = 'LDK Node Workshop',
+}) async {
+    if (_node == null) {
+        throw NoWalletException('A Lightning node has to be initialized first!');
+    }
+
+    Bolt11Payment bolt11Payment = await _node!.bolt11Payment();
+    Bolt11Invoice? bolt11;
+    try {
+        if (amountSat == null) {
+            // 18. Change to receive via a JIT channel when no amount is specified
+            bolt11 = await bolt11Payment.receiveVariableAmount(
+                expirySecs: expirySecs,
+                description: description,
+            );
+        } else {
+            // 19. Check the inbound liquidity and request a JIT channel if needed
+            //  otherwise receive the payment as before.
+            bolt11 = await bolt11Payment.receive(
+                amountMsat: BigInt.from(amountSat * 1000),
+                expirySecs: expirySecs,
+                description: description,
+            );
+        }
+    } catch (e) {
+        final errorMessage = 'Failed to generate invoice: $e';
+        print(errorMessage);
+    }
+
+    final onChainPayment = await _node!.onChainPayment();
+    final bitcoinAddress = await onChainPayment.newAddress();
+
+    print('Generated invoice: ${bolt11?.signedRawInvoice}');
+    print('Generated address: ${bitcoinAddress.s}');
+
+    return (bitcoinAddress.s, bolt11 == null ? '' : bolt11.signedRawInvoice);
+}
+```
+
+In a real app, you could use other logic to decide when to request a JIT channel or give the user the option to choose if they want to use JIT channels or not.
 
 ### Rapid Gossip Sync
 
@@ -268,7 +409,8 @@ Now add the url of the network you want to use to the node builder in the `_init
 
 ```dart
 Future<void> _initialize(Mnemonic mnemonic) async {
-    // 14. Add the following url to the Builder instance as the Rapid Gossip Sync server url to source the network graph data from: https://mutinynet.ltbl.io/snapshot
+    // 20. Add the following url to the Builder instance as the Rapid Gossip Sync server url to source the network graph data from:
+    //      https://mutinynet.ltbl.io/snapshot
     final builder = Builder()
         .setEntropyBip39Mnemonic(mnemonic: mnemonic)
         .setStorageDirPath(await _nodePath)
@@ -298,52 +440,11 @@ Future<void> _initialize(Mnemonic mnemonic) async {
 }
 ```
 
-If you now run the app and compare the printed logs to the logs when no RGS is used, you should see a significant improvement in the time it takes to sync the network graph and see that in just the seconds of the node starting up, it has up to date information about a lot of nodes and channels. This gives the node the information it needs to calculate routes for payments itself, without having sync some minutes at every startup, and also without having to pass private payment recipient information to a third party to offload the routing calculations, as some wallets do. With RGS, the node can do it all itself, privately and quickly.
+If you now reload the app and compare the printed logs to the logs when no RGS is used, you should see a significant improvement in the time it takes to sync the network graph and see that in just the seconds of the node starting up, it has up to date information about a lot of nodes and channels. This gives the node the information it needs to calculate routes for payments itself, without having sync some minutes at every startup, and also without having to pass private payment recipient information to a third party to offload the routing calculations, as some wallets do. With RGS, the node can do it all itself, privately and quickly.
 
-### Check inbound liquidity
+### Bolt12
 
-If a user still has sufficient inbound liquidity, they can receive payments without having to request JIT channels. A good UX would be to show the user how much inbound liquidity they have left and let him choose to request a JIT channel for an extra fee, but with more guarantee the payment will go through, or to use the inbound liquidity they have left with a normal invoice.
-
-To be able to check the inbound liquidity, get the inbound liquidity from the node in the `inboundLiquiditySat` getter in the `LightningWalletService` class. The inbound liquidity is the sum of the inbound capacity of all channels of the node.
-
-```dart
-Future<int> get inboundLiquiditySat async {
-    if (_node == null) {
-      return 0;
-    }
-
-    // 15. Get the total inbound liquidity in satoshis by summing up the inbound
-    //  capacity of all channels that are usable ad return it in satoshis.
-    return 0;
-}
-```
-
-### Open a channel with on-chain funds
-
-If you have received on-chain funds with your Lightning wallet, you can send these funds to another on-chain wallet or use them to open a new channel. To be able to open a channel with on-chain funds, the `openChannel` function should be implemented in the `LightningWalletService` class.
-
-Connect and open a channel with a node from which the host, port and node id are passed as parameters. The channel amount is also passed as a parameter and the channel is not announced by default, since this is a mobile wallet and not a routing node.
-
-```dart
-Future<void> openChannel({
-    required String host,
-    required int port,
-    required String nodeId,
-    required int channelAmountSat,
-    bool announceChannel = false,
-}) async {
-  if (_node == null) {
-      throw NoWalletException('A Lightning node has to be initialized first!');
-  }
-
-  // 16. Connect to a node and open a new channel.
-}
-```
-
-> [!NOTE]  
-> The LDK Node library uses the Bitcoin Development Kit under the hood to manage on-chain transactions and addresses. But it does not expose all the functionalities of the Bitcoin Development Kit. Mainly just receiving and sending funds without much control and obtaining the on-chain balances, respectively with `ldk_node` functions `sendToOnchainAddress`, `sendAllToOnchainAddress`, `totalOnchainBalanceSats` and `spendableOnchainBalanceSats` . These latter functionalities are used in some implemented functions of the `LightningWalletService` class already. If you want more on-chain functionalities and control, you will have to use the Bitcoin Development Kit directly and add a separate savings wallet as we did for you already and as you can learn in the [BDK Flutter Workshop](https://github.com/LtbLightning/bdk-flutter-workshop).
-
-To get the option to open a channel in the app, press the pending balance in the transactions overview, which should appear if you have sent funds to the bitcoin address of the spending wallet and the transaction has been confirmed.
+LDK Node already implements the more recent Bolt12 standard for payments through static offers. We will not use this in this workshop, since we need to be connected with nodes/LSPs that support Onion Messages, but you can try it out for yourself by connecting to such a node/LSP and using the `Bolt12Payment` class and its functions.
 
 ## What's next?
 
