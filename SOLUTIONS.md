@@ -190,7 +190,7 @@ Future<String> pay(
         );
 
     // 12. Return the payment hash as a hex string
-    return hash.field0.toString();
+    return hash.field0.hexCode;
 }
 ```
 
@@ -217,7 +217,7 @@ Future<List<TransactionEntity>> getTransactions() async {
       final amountSat = payment.amountMsat != null
                 ? (payment.amountMsat! ~/ BigInt.from(1000)).toInt()
                 : 0;
-      final timestamp = payment.latestUpdateTimestamp;
+      final timestamp = payment.latestUpdateTimestamp.toInt();
 
       return TransactionEntity(
         id: paymentHash,
@@ -234,7 +234,7 @@ Future<List<TransactionEntity>> getTransactions() async {
 ```dart
 Future<void> _initialize(Mnemonic mnemonic) async {
     // 16. Add the following LSP to be able to request LSPS2 JIT channels:
-    //       Node Pubkey: 02de89e79fd4adfd5f15b5f09efa60250f5fcc62b8cda477a1cfab38d0bb53dd96
+    //       Node Pubkey: 02764a0e09f2e8ec67708f11d853191e8ba4a7f06db1330fd0250ab3de10590a8e
     //       Node Address: 192.243.215.101:27110
     final builder = Builder()
         .setEntropyBip39Mnemonic(mnemonic: mnemonic)
@@ -252,7 +252,7 @@ Future<void> _initialize(Mnemonic mnemonic) async {
             ),
             publicKey: const PublicKey(
                 hex:
-                    '02de89e79fd4adfd5f15b5f09efa60250f5fcc62b8cda477a1cfab38d0bb53dd96',
+                    '02764a0e09f2e8ec67708f11d853191e8ba4a7f06db1330fd0250ab3de10590a8e',
             )
         );
 
@@ -311,13 +311,13 @@ Future<(String?, String?)> generateInvoices({
             // 19. Check the inbound liquidity and request a JIT channel if needed
             //  otherwise receive the payment as before.
             if (await inboundLiquiditySat < amountSat) {
-                bolt11 = await _node!.receiveViaJitChannel(
+                bolt11 = await bolt11Payment.receiveViaJitChannel(
                     amountMsat: BigInt.from(amountSat * 1000),
                     expirySecs: expirySecs,
                     description: description,
                 );
             } else {
-                bolt11 = await _node!.receive(
+                bolt11 = await bolt11Payment.receive(
                     amountMsat: BigInt.from(amountSat * 1000),
                     expirySecs: expirySecs,
                     description: description,
@@ -360,7 +360,7 @@ Future<void> _initialize(Mnemonic mnemonic) async {
             ),
             publicKey: const PublicKey(
                 hex:
-                    '02de89e79fd4adfd5f15b5f09efa60250f5fcc62b8cda477a1cfab38d0bb53dd96',
+                    '02764a0e09f2e8ec67708f11d853191e8ba4a7f06db1330fd0250ab3de10590a8e',
             )
         ).setGossipSourceRgs('https://mutinynet.ltbl.io/snapshot');
 

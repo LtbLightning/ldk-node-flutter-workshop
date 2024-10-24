@@ -137,7 +137,7 @@ In the app we use the BIP21 format, also known as unified QR codes. This format 
 Future<(String?, String?)> generateInvoices({
     int? amountSat,
     int expirySecs = 3600 * 24, // Default to 1 day
-    String? description = 'LDK Node Workshop',
+    String description = 'LDK Node Workshop',
 }) async {
     if (_node == null) {
       throw NoWalletException('A Lightning node has to be initialized first!');
@@ -284,7 +284,7 @@ Token: JZWN9YLW
 
 Another LSP that supports LSPS2 is LQwD. (https://lqwdtech.com/) The following info can be used to connect to their node on Mutinynet:
 
-Node Pubkey: 02de89e79fd4adfd5f15b5f09efa60250f5fcc62b8cda477a1cfab38d0bb53dd96
+Node Pubkey: 02764a0e09f2e8ec67708f11d853191e8ba4a7f06db1330fd0250ab3de10590a8e
 Node Address: 192.243.215.101:27110
 
 Use this information to configure the LSPS2 client by adding it to the node builder settings in our `_initialize` function:
@@ -292,7 +292,7 @@ Use this information to configure the LSPS2 client by adding it to the node buil
 ```dart
 Future<void> _initialize(Mnemonic mnemonic) async {
     // 16. Add the following LSP to be able to request LSPS2 JIT channels:
-    //       Node Pubkey: 02de89e79fd4adfd5f15b5f09efa60250f5fcc62b8cda477a1cfab38d0bb53dd96
+    //       Node Pubkey: 02764a0e09f2e8ec67708f11d853191e8ba4a7f06db1330fd0250ab3de10590a8e
     //       Node Address: 192.243.215.101:27110
     final builder = Builder()
         .setEntropyBip39Mnemonic(mnemonic: mnemonic)
@@ -428,7 +428,7 @@ Future<void> _initialize(Mnemonic mnemonic) async {
           ),
           publicKey: const PublicKey(
             hex:
-                '02de89e79fd4adfd5f15b5f09efa60250f5fcc62b8cda477a1cfab38d0bb53dd96',
+                '02764a0e09f2e8ec67708f11d853191e8ba4a7f06db1330fd0250ab3de10590a8e',
           ),
         );
 

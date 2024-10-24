@@ -65,7 +65,7 @@ class LightningWalletService implements WalletService {
     //    - the Esplora server URL to `https://mutinynet.ltbl.io/api/`
     //    - a listening address to 0.0.0.0:9735
     // 16. Add the following LSP to be able to request LSPS2 JIT channels:
-    //       Node Pubkey: 02de89e79fd4adfd5f15b5f09efa60250f5fcc62b8cda477a1cfab38d0bb53dd96
+    //       Node Pubkey: 02764a0e09f2e8ec67708f11d853191e8ba4a7f06db1330fd0250ab3de10590a8e
     //       Node Address: 192.243.215.101:27110
     // 20. Add the following url to the Builder instance as the Rapid Gossip Sync
     //     server url to source the network graph data from: https://mutinynet.ltbl.io/snapshot
@@ -94,7 +94,7 @@ class LightningWalletService implements WalletService {
   Future<(String?, String?)> generateInvoices({
     int? amountSat,
     int expirySecs = 3600 * 24, // Default to 1 day
-    String? description = 'LDK Node Workshop',
+    String description = 'LDK Node Workshop',
   }) async {
     if (_node == null) {
       throw NoWalletException('A Lightning node has to be initialized first!');
@@ -287,7 +287,7 @@ class LightningWalletService implements WalletService {
   }
 }
 
-/*extension U8Array32X on U8Array32 {
+extension U8Array32X on U8Array32 {
   String get hexCode =>
       map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
-}*/
+}
