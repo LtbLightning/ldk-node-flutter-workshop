@@ -27,9 +27,11 @@ class LightningWalletService implements WalletService {
     if (mnemonic != null && mnemonic.isNotEmpty) {
       await _initialize(Mnemonic(seedPhrase: mnemonic));
 
-      debugPrint(
-        'Lightning node initialized with id: ${(await _node!.nodeId()).hex}',
-      );
+      if (_node != null) {
+        debugPrint(
+          'Lightning node initialized with id: ${(await _node!.nodeId()).hex}',
+        );
+      }
     }
   }
 
